@@ -1,9 +1,6 @@
 package com.example.pedidos.exceptions;
 
-import com.example.pedidos.models.ErrorMessage;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,60 +15,72 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 1. Maneja errores de "No encontrado" (404)
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorMessage> resourceNotFoundException(RuntimeException ex, WebRequest request) {
-        ErrorMessage message = new ErrorMessage(
-                HttpStatus.NOT_FOUND.value(),
-                LocalDateTime.now(),
-                ex.getMessage(),
-                request.getDescription(false));
+        // 1. Maneja "Recurso no encontrado" (404) - REQUISITO PUNTO 10
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<ErrorDetails> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
+                // Logueamos como WARN según pauta (Punto 11)
+                log.warn("Recurso no encontrado: {} - URL: {}", ex.getMessage(), request.getDescription(false));
 
-        return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
-    }
+                ErrorDetails error = new ErrorDetails(
+                                LocalDateTime.now(),
+                                ex.getMessage(),
+                                request.getDescription(false));
+                return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
 
-    // 2. Maneja errores generales (500)
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorMessage> globalExceptionHandler(Exception ex, WebRequest request) {
-        // Logueamos el error con nivel ERROR
-        log.error("ERROR INTERNO: {} - Ruta: {}", ex.getMessage(), request.getDescription(false));
-        ErrorMessage message = new ErrorMessage(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                LocalDateTime.now(),
-                "Ocurrió un error interno en el servidor",
-                request.getDescription(false));
+        // 2. Maneja errores de validación @Valid (400) - REQUISITO PUNTOS 6 Y 8
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<ErrorDetails> handleValidationExceptions(MethodArgumentNotValidException ex,
+                        WebRequest request) {
+                String errores = ex.getBindingResult()
+                                .getFieldErrors()
+                                .stream()
+                                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                                .collect(Collectors.joining(" | "));
 
-        return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+                log.warn("Error de validación en la petición: {}", errores);
 
-    // 3. Maneja errores de duplicidad en Oracle/Hibernate (409)
-    @ExceptionHandler(org.hibernate.NonUniqueResultException.class)
-    public ResponseEntity<ErrorMessage> handleNonUniqueResult(org.hibernate.NonUniqueResultException ex,
-            WebRequest request) {
-        ErrorMessage message = new ErrorMessage(
-                HttpStatus.CONFLICT.value(),
-                LocalDateTime.now(),
-                "Se encontraron registros duplicados. Por favor, contacte al administrador.",
-                request.getDescription(false));
-        return new ResponseEntity<>(message, HttpStatus.CONFLICT);
-    }
+                ErrorDetails error = new ErrorDetails(
+                                LocalDateTime.now(),
+                                "Error de validación: " + errores,
+                                request.getDescription(false));
+                return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
 
-    // 4. Maneja errores de validación (@Valid) (400)
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorMessage> handleValidationExceptions(MethodArgumentNotValidException ex,
-            WebRequest request) {
-        String errores = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(error -> error.getDefaultMessage())
-                .collect(Collectors.joining(" - "));
+        // 3. Maneja errores generales del servidor (500) - REQUISITO PUNTO 8
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<ErrorDetails> handleGlobalException(Exception ex, WebRequest request) {
+                // Logueamos como ERROR crítico (Punto 11)
+                log.error("ERROR INTERNO DEL SISTEMA: {} - Detalle: {}", ex.getMessage(),
+                                request.getDescription(false));
 
-        ErrorMessage message = new ErrorMessage(
-                HttpStatus.BAD_REQUEST.value(),
-                LocalDateTime.now(),
-                "Error de validación: " + errores,
-                request.getDescription(false));
+                ErrorDetails error = new ErrorDetails(
+                                LocalDateTime.now(),
+                                "Ocurrió un error inesperado en el servidor",
+                                request.getDescription(false));
+                return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
 
-        return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
-    }
+        // manejador para errores de seguridad (403)
+        @ExceptionHandler(AccesoDenegadoException.class)
+        public ResponseEntity<ErrorDetails> handleAccesoDenegado(AccesoDenegadoException ex, WebRequest request) {
+                log.warn("SEGURIDAD: Intento de acceso no autorizado - {}", ex.getMessage());
+
+                ErrorDetails error = new ErrorDetails(
+                                LocalDateTime.now(),
+                                ex.getMessage(), // Aquí dirá "No tienes permisos de Administrador"
+                                request.getDescription(false));
+                return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        }
+
+        @ExceptionHandler(DuplicateResourceException.class)
+        public ResponseEntity<ErrorDetails> handleDuplicateResource(DuplicateResourceException ex, WebRequest request) {
+                log.warn("CONFLICTO: Intento de crear producto duplicado - {}", ex.getMessage());
+
+                ErrorDetails error = new ErrorDetails(
+                                LocalDateTime.now(),
+                                ex.getMessage(),
+                                request.getDescription(false));
+                return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+        }
 }
