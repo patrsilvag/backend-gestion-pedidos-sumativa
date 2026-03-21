@@ -1,6 +1,6 @@
 # 📦 Sistema de Gestión de Pedidos - Microservicio de Productos
 
-Este proyecto es una implementación de grado ingeniería para la asignatura de Desarrollo de Software en **Duoc UC**. Se trata de un microservicio de alta disponibilidad para la gestión de productos, integrado con **Oracle Cloud Infrastructure (OCI)** y diseñado bajo estándares de arquitectura limpia, validación robusta y seguridad por roles.
+Este proyecto es una implementación de grado ingeniería para la asignatura de Desarrollo de Software en **Duoc UC** Se trata de un microservicio de alta disponibilidad para la gestión de productos, integrado con **Oracle Cloud Infrastructure (OCI)** y diseñado bajo estándares de arquitectura limpia, validación robusta y simulación de procesos de negocio
 
 ## 🚀 Especificaciones Técnicas
 * **Lenguaje:** Java 21 (LTS)
@@ -12,36 +12,39 @@ Este proyecto es una implementación de grado ingeniería para la asignatura de 
 ## 🛠️ Características Principales
 
 ### 1. Persistencia en la Nube
-El microservicio utiliza **Oracle Wallet** y dependencias de seguridad específicas (`oraclepki`, `osdt_cert`) para una conexión cifrada con la base de datos en la nube. El esquema se genera automáticamente mediante JPA con nombres de columna estandarizados como `ID_PRODUCTO`.
+El microservicio utiliza **Oracle Wallet** para una conexión cifrada con la base de datos en la nube. El esquema se genera automáticamente mediante JPA con nombres de columna estandarizados como `ID_PRODUCTO`.
 
-### 2. Validaciones de Negocio (Nivel Ingeniería)
-* **Moneda Nacional (CLP):** El campo `precio` se maneja como un entero (`Long`) para evitar errores de precisión decimal y ajustarse a la realidad del mercado chileno.
-* **Integridad de Nombres:** Implementación de lógica `existsByNombre` para evitar la duplicidad de productos en el catálogo.
-* **Restricciones de Texto:** La descripción cuenta con un rango obligatorio de 10 a 200 caracteres para asegurar la calidad de la información.
+### 2. Lógica de Compra y Stock (Requerimientos #31 y #27)
+Se implementó un flujo de compra que simula una transacción real:
+* **Validación de Inventario:** El sistema verifica el stock disponible en **Oracle Cloud** antes de procesar cualquier pedido.
+***Simulación de Pago:** Al realizar una compra, el sistema devuelve una confirmación de éxito ("Pago realizado con éxito") sin necesidad de integrar pasarelas externas como WebPay, cumpliendo con la pauta técnica.
+* **Actualización Automática:** Cada compra exitosa descuenta automáticamente las unidades del inventario global.
 
 ### 3. Seguridad y Control de Acceso (RBAC)
-Se simula un control de acceso mediante parámetros de consulta:
-* **ADMIN:** Tiene permisos para realizar operaciones de escritura, edición y eliminación.
-* **CLIENTE:** Restringido a consultas de solo lectura.
+Control de acceso basado en roles mediante parámetros de consulta:
+***ADMIN:** Permisos totales para gestión (Crear, Editar, Eliminar productos).
+***CLIENTE:** Permisos para búsqueda, visualización y ejecución de compras.
 
 ## 📑 API Endpoints y Códigos de Respuesta
 
 | Método | Endpoint | Descripción | Código Éxito |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/productos` | Obtiene el catálogo completo | 200 OK |
+| **GET** | `/api/productos` | Obtiene el catálogo completo (5 productos mín.) | 200 OK |
 | **GET** | `/api/productos/{id}` | Busca un producto por su ID único | 200 OK |
+| **POST** | `/api/productos/{id}/comprar` | **Compra**: Simula pago y descuenta stock | 200 OK |
 | **POST** | `/api/productos` | Crea un producto (Requiere `?rol=ADMIN`) | 201 Created |
+| **PUT** | `/api/productos/{id}` | Actualiza un producto (Requiere `?rol=ADMIN`) | 200 OK |
 | **DELETE**| `/api/productos/{id}`| Elimina un producto (Requiere `?rol=ADMIN`)| 204 No Content |
 
 ### Manejo de Errores Personalizado
-El sistema utiliza un `GlobalExceptionHandler` para devolver respuestas estandarizadas:
-* **400 Bad Request:** Fallo en las validaciones de campos (`@NotBlank`, `@Min`, etc.).
-* **403 Forbidden:** Intento de realizar acciones administrativas con rol de CLIENTE.
-* **404 Not Found:** El recurso solicitado no existe en Oracle Cloud.
-* **409 Conflict:** Intento de crear un producto con un nombre que ya existe.
+* **400 Bad Request:** Fallo en validaciones o stock insuficiente para la compra.
+* **403 Forbidden:** Cliente intentando realizar acciones de administrador.
+* **404 Not Found:** El producto no existe en el catálogo de la nube.
+* **409 Conflict:** Intento de duplicar un nombre de producto existente.
 
 ## 🧪 Pruebas con Postman
-Se incluye una colección de Postman configurada para el puerto **8081** que permite validar:
-1. Carga masiva de productos (Smartphone, Laptop, Teclado).
-2. Bloqueo de seguridad al intentar borrar como cliente.
-3. Respuesta de conflicto al intentar duplicar nombres.
+La colección de Postman para el puerto **8081** permite validar el ciclo de vida del producto:
+1. **Carga Inicial:** Creación de los **5 productos** requeridos por el caso asignado.
+2. **Flujo de Venta:** Simulación de compra exitosa con reducción de stock en tiempo real.
+3. **Validación de Negocio:** Error controlado al intentar comprar más unidades de las disponibles.
+4. **Seguridad:** Bloqueo de operaciones administrativas para el rol `CLIENTE`.
