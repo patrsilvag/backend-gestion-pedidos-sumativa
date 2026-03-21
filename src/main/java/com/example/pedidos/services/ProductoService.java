@@ -79,4 +79,23 @@ public class ProductoService {
             throw new AccesoDenegadoException("Acceso denegado: Se requieren permisos de ADMINISTRADOR.");
         }
     }
+
+    public Producto comprar(Long id, Integer cantidad) {
+        log.info("Service: Procesando compra para ID: {}, cantidad: {}", id, cantidad);
+
+        Producto producto = buscarPorId(id);
+
+        // Validar stock disponible
+        if (producto.getStock() < cantidad) {
+            log.warn("Service: Stock insuficiente para producto ID: {}. Disponible: {}", id, producto.getStock());
+            throw new DuplicateResourceException(
+                    "Stock insuficiente. Solo quedan " + producto.getStock() + " unidades.");
+        }
+
+        // Simulación de compra: Descontar stock
+        producto.setStock(producto.getStock() - cantidad);
+
+        log.info("Service: Compra simulada con éxito. Nuevo stock: {}", producto.getStock());
+        return productoRepository.save(producto);
+    }
 }

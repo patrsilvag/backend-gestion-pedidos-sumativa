@@ -1,5 +1,6 @@
 package com.example.pedidos.controllers;
 
+import com.example.pedidos.dto.CompraRequest;
 import com.example.pedidos.models.Producto;
 import com.example.pedidos.services.ProductoService;
 import jakarta.validation.Valid;
@@ -43,4 +44,16 @@ public class ProductoController {
         // Devuelve 204 No Content sin cuerpo, tal como se indico en clases
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/comprar")
+    public ResponseEntity<?> comprar(@PathVariable Long id, @Valid @RequestBody CompraRequest request) {
+    Producto productoActualizado = productoService.comprar(id, request.getCantidad());
+    
+    // Retornamos un mensaje de éxito simulando la pasarela de pago 
+    return ResponseEntity.ok().body(new Object() {
+        public final String mensaje = "Pago realizado con éxito. Su pedido está en camino.";
+        public final String producto = productoActualizado.getNombre();
+        public final Integer stockRestante = productoActualizado.getStock();
+    });
+}
 }
