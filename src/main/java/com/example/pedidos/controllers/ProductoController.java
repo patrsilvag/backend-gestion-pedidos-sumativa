@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -49,11 +50,11 @@ public class ProductoController {
     public ResponseEntity<?> comprar(@PathVariable Long id, @Valid @RequestBody CompraRequest request) {
     Producto productoActualizado = productoService.comprar(id, request.getCantidad());
     
-    // Retornamos un mensaje de éxito simulando la pasarela de pago 
-    return ResponseEntity.ok().body(new Object() {
-        public final String mensaje = "Pago realizado con éxito. Su pedido está en camino.";
-        public final String producto = productoActualizado.getNombre();
-        public final Integer stockRestante = productoActualizado.getStock();
-    });
+   // Usamos Map.of para crear un objeto JSON rápido y sin warnings
+    return ResponseEntity.ok(Map.of(
+        "mensaje", "Pago realizado con éxito. Su pedido está en camino.",
+        "producto", productoActualizado.getNombre(),
+        "stockRestante", productoActualizado.getStock()
+    ));
 }
 }
