@@ -80,22 +80,13 @@ public class ProductoService {
         }
     }
 
-    public Producto comprar(Long id, Integer cantidad) {
-        log.info("Service: Procesando compra para ID: {}, cantidad: {}", id, cantidad);
-
+    public void descontarStock(Long id, Integer cantidad) {
         Producto producto = buscarPorId(id);
-
-        // Validar stock disponible
         if (producto.getStock() < cantidad) {
-            log.warn("Service: Stock insuficiente para producto ID: {}. Disponible: {}", id, producto.getStock());
-            throw new DuplicateResourceException(
-                    "Stock insuficiente. Solo quedan " + producto.getStock() + " unidades.");
+            throw new DuplicateResourceException("Stock insuficiente");
         }
-
-        // Simulación de compra: Descontar stock
         producto.setStock(producto.getStock() - cantidad);
-
-        log.info("Service: Compra simulada con éxito. Nuevo stock: {}", producto.getStock());
-        return productoRepository.save(producto);
+        productoRepository.save(producto);
     }
+   
 }

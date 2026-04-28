@@ -1,6 +1,4 @@
 package com.example.pedidos.controllers;
-
-import com.example.pedidos.dto.CompraRequest;
 import com.example.pedidos.models.Producto;
 import com.example.pedidos.services.ProductoService;
 import jakarta.validation.Valid;
@@ -9,7 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/productos")
@@ -46,15 +44,11 @@ public class ProductoController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/comprar")
-    public ResponseEntity<?> comprar(@PathVariable Long id, @Valid @RequestBody CompraRequest request) {
-    Producto productoActualizado = productoService.comprar(id, request.getCantidad());
+    @PostMapping("/{id}/descontar-stock")
+    public ResponseEntity<Void> descontarStock(@PathVariable Long id,
+            @RequestParam Integer cantidad) {
+        productoService.descontarStock(id, cantidad);
+        return ResponseEntity.ok().build();
+    }
     
-   // Usamos Map.of para crear un objeto JSON rápido y sin warnings
-    return ResponseEntity.ok(Map.of(
-        "mensaje", "Pago realizado con éxito. Su pedido está en camino.",
-        "producto", productoActualizado.getNombre(),
-        "stockRestante", productoActualizado.getStock()
-    ));
-}
 }
