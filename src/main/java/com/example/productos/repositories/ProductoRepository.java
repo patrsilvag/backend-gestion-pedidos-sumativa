@@ -1,9 +1,8 @@
-package com.example.pedidos.repositories;
-
-import com.example.pedidos.models.Producto;
+package com.example.productos.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import com.example.productos.models.Producto;
 
 @Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {

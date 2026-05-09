@@ -1,8 +1,8 @@
-package com.example.pedidos.exceptions;
+package com.example.productos.exceptions;
 
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
