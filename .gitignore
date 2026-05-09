@@ -34,3 +34,7 @@ build/
 
 # Config sensible
 application-dev.properties
+
+**/wallets/
+**/target/
+*.jar
