@@ -14,7 +14,7 @@ class GestionApplicationTests {
 
     @Test
     void testMain() {
-        // Al usar assertDoesNotThrow, cumples con la regla de "al menos una aserción"
+        // Al usar assertDoesNotThrow, cubres el punto de entrada de la aplicación
         assertDoesNotThrow(() -> {
             GestionApplication.main(new String[] {});
         });

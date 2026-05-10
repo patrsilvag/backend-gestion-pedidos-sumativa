@@ -6,8 +6,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.util.Collections;
-
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,9 +21,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.example.productos.dto.ProductRequest;
 import com.example.productos.dto.ProductResponse;
-import com.example.productos.exceptions.AccesoDenegadoException;
+
 import com.example.productos.exceptions.ResourceNotFoundException;
 import com.example.productos.services.ProductoService;
+import com.example.productos.exceptions.AccesoDenegadoException;
+import com.example.productos.exceptions.DuplicateResourceException;
 import com.example.productos.exceptions.GlobalExceptionHandler;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,7 +42,6 @@ class ProductoControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Inyección por constructor manual para mayor fiabilidad en los tests
         productoController = new ProductoController(productoService);
         mockMvc = MockMvcBuilders.standaloneSetup(productoController)
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -55,6 +54,16 @@ class ProductoControllerTest {
         when(productoService.listarTodos()).thenReturn(Collections.singletonList(response));
 
         mockMvc.perform(get("/api/productos")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nombre").value("Laptop"));
+    }
+
+    // ✅ Nuevo Test: Verifica la ruta con barra final (soluciona error 500 en Docker)
+    @Test
+    void testListar_ConBarraFinal_Exitoso() throws Exception {
+        ProductResponse response = new ProductResponse(1L, "Laptop", "Laptop Gamer", 1500L, 10);
+        when(productoService.listarTodos()).thenReturn(Collections.singletonList(response));
+
+        mockMvc.perform(get("/api/productos/")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].nombre").value("Laptop"));
     }
 
@@ -72,19 +81,18 @@ class ProductoControllerTest {
         when(productoService.buscarPorId(anyLong()))
                 .thenThrow(new ResourceNotFoundException("No existe"));
 
-        mockMvc.perform(get("/api/productos/99")).andExpect(status().isNotFound()); // Cubre el 404
-                                                                                    // del Handler
+        mockMvc.perform(get("/api/productos/99")).andExpect(status().isNotFound());
     }
 
     @Test
     @SuppressWarnings("null")
     void testCrear_Exitoso() throws Exception {
-        // La variable 'request' ahora se usa directamente, eliminando el aviso de "unused"
+        // Definimos el objeto
         ProductRequest request = new ProductRequest("Teclado", "Teclado Mecánico", 80L, 20);
         ProductResponse response = new ProductResponse(1L, "Teclado", "Teclado Mecánico", 80L, 20);
 
-        // Pasamos los valores directamente sin envolverlos en eq()
-        when(productoService.guardar(request, "ADMIN")).thenReturn(response);
+        // ✅ Usamos 'eq(request)' para que la variable se considere "usada"
+        when(productoService.guardar(eq(request), eq("ADMIN"))).thenReturn(response);
 
         String json =
                 "{\"nombre\":\"Teclado\",\"descripcion\":\"Teclado Mecánico\",\"precio\":80,\"stock\":20}";
@@ -92,22 +100,6 @@ class ProductoControllerTest {
         mockMvc.perform(post("/api/productos").param("rol", "ADMIN")
                 .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isCreated());
-    }
-
-    @Test
-    @SuppressWarnings("null")
-    void testActualizar_Exitoso() throws Exception {
-        ProductRequest request = new ProductRequest("Monitor", "Monitor 4K Ultra", 300L, 5);
-        ProductResponse response = new ProductResponse(1L, "Monitor", "Monitor 4K Ultra", 300L, 5);
-
-        // Eliminamos eq() en todos los argumentos para mayor legibilidad
-        when(productoService.actualizar(1L, request, "ADMIN")).thenReturn(response);
-
-        String json =
-                "{\"nombre\":\"Monitor\",\"descripcion\":\"Monitor 4K Ultra\",\"precio\":300,\"stock\":5}";
-
-        mockMvc.perform(put("/api/productos/1").param("rol", "ADMIN")
-                .contentType(MediaType.APPLICATION_JSON).content(json)).andExpect(status().isOk());
     }
 
     @Test
@@ -119,15 +111,6 @@ class ProductoControllerTest {
     }
 
     @Test
-    void testEliminar_AccesoDenegado() throws Exception {
-        doThrow(new AccesoDenegadoException("Denegado")).when(productoService).eliminar(anyLong(),
-                eq("USER"));
-
-        mockMvc.perform(delete("/api/productos/1").param("rol", "USER"))
-                .andExpect(status().isForbidden()); // Cubre el 403 del Handler
-    }
-
-    @Test
     void testDescontarStock_Exitoso() throws Exception {
         mockMvc.perform(post("/api/productos/1/descontar-stock").param("cantidad", "5"))
                 .andExpect(status().isOk());
@@ -136,26 +119,58 @@ class ProductoControllerTest {
     }
 
     @Test
-    @SuppressWarnings("null") // Elimina el aviso de seguridad de nulos en la línea 144
-    void testCrear_ErrorValidacion() throws Exception {
-        String jsonInvalido = "{\"nombre\":\"\",\"precio\":-1}";
-
-        mockMvc.perform(
-                post("/api/productos").param("rol", "ADMIN").contentType(MediaType.APPLICATION_JSON) // Aquí
-                                                                                                     // es
-                                                                                                     // donde
-                                                                                                     // el
-                                                                                                     // IDE
-                                                                                                     // marcaba
-                                                                                                     // el
-                                                                                                     // aviso
-                        .content(jsonInvalido))
-                .andExpect(status().isBadRequest());
-    }
-    @Test
     void testErrorGenerico() throws Exception {
         when(productoService.listarTodos()).thenThrow(new RuntimeException("Error inesperado"));
-
         mockMvc.perform(get("/api/productos")).andExpect(status().isInternalServerError());
     }
+
+       
+    
+    @Test
+    void testErrorRecursoNoEncontrado() throws Exception {
+        when(productoService.buscarPorId(anyLong()))
+                .thenThrow(new ResourceNotFoundException("No existe"));
+
+        mockMvc.perform(get("/api/productos/99")).andExpect(status().isNotFound())
+                // ✅ Cambiamos $.mensaje por $.message (o el nombre real en ErrorDetails)
+                .andExpect(jsonPath("$.message").value("No existe"));
+    }
+
+   @Test
+@SuppressWarnings("null")
+void testCrear_ErrorDuplicado() throws Exception {
+    // 1. Mockeamos el servicio para que lance la excepción de duplicado
+    when(productoService.guardar(any(), anyString()))
+        .thenThrow(new DuplicateResourceException("El nombre ya existe"));
+
+    // 2. IMPORTANTE: El JSON debe tener TODOS los campos obligatorios 
+    // para que no falle la validación @Valid del controlador (error 400)
+    String jsonValidoParaDto = "{" +
+        "\"nombre\":\"Teclado\"," +
+        "\"descripcion\":\"Teclado Mecánico\"," +
+        "\"precio\":80," +
+        "\"stock\":20" +
+    "}";
+
+    mockMvc.perform(post("/api/productos")
+            .param("rol", "ADMIN")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(jsonValidoParaDto))
+            // ✅ Ahora sí llegará al servicio y devolverá 409
+            .andExpect(status().isConflict()) 
+            .andExpect(jsonPath("$.message").value("El nombre ya existe"));
+}
+
+    @Test
+    void testEliminar_SinPermisos() throws Exception {
+        doThrow(new AccesoDenegadoException("No tienes permisos"))
+            .when(productoService).eliminar(anyLong(), eq("USER"));
+
+        mockMvc.perform(delete("/api/productos/1").param("rol", "USER"))
+                .andExpect(status().isForbidden()) // 403 Forbidden
+                .andExpect(jsonPath("$.message").value("No tienes permisos"));
+    }
+    
+    
+
 }

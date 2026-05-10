@@ -12,17 +12,18 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/productos")
-@CrossOrigin(origins = "http://localhost:4200")
+// ✅ Se añaden los orígenes de Docker y local
+@CrossOrigin(origins = {"http://mi-app-docker", "http://localhost:4200", "http://localhost"})
 public class ProductoController {
 
     private final ProductoService productoService;
 
-    // Inyección por constructor para Rating A en Reliability
     public ProductoController(ProductoService productoService) {
         this.productoService = productoService;
     }
 
-    @GetMapping
+    // ✅ Se permite tanto "/api/productos" como "/api/productos/"
+    @GetMapping({"", "/"})
     public ResponseEntity<List<ProductResponse>> listar() {
         return ResponseEntity.ok(productoService.listarTodos());
     }

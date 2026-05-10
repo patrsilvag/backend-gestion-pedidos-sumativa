@@ -19,14 +19,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable()) // Deshabilitado para APIs REST
+        http.csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests(auth -> auth
-                        // Permitir peticiones de diagnóstico del navegador
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Permitir acceso total a la API de productos para el frontend
-                        .requestMatchers("/api/productos/**").permitAll().requestMatchers("/error")
-                        .permitAll().anyRequest().authenticated())
+                .authorizeHttpRequests(
+                        auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                // ✅ Se asegura el acceso a la ruta de productos y errores
+                                .requestMatchers("/api/productos/**").permitAll()
+                                .requestMatchers("/error").permitAll().anyRequest().authenticated())
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
@@ -36,8 +35,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permitimos el acceso desde el puerto de Docker (80) y local (4200)
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost", "http://localhost:4200"));
+        // ✅ Se añade 'http://mi-app-docker' como origen permitido
+        configuration.setAllowedOrigins(
+                Arrays.asList("http://mi-app-docker", "http://localhost", "http://localhost:4200"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true);
